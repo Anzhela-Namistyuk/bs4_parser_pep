@@ -21,7 +21,8 @@ def whats_new(session):
     soup = BeautifulSoup(response.text, 'lxml')
     main_div = find_tag(soup, 'section', attrs={'id': 'what-s-new-in-python'})
     div_with_ul = find_tag(main_div, 'div', attrs={'class': 'toctree-wrapper'})
-    sections_by_python = div_with_ul.find_all('li', attrs={'class': 'toctree-l1'})
+    sections_by_python = div_with_ul.find_all(
+        'li', attrs={'class': 'toctree-l1'})
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
     for section in tqdm(sections_by_python):
         version_a_tag = section.find('a')
@@ -73,7 +74,8 @@ def download(session):
     response = get_response(session, downloads_url)
     soup = BeautifulSoup(response.text, 'lxml')
     tag_table = find_tag(soup, 'table', {'class': 'docutils'})
-    pdf_a4_tag = find_tag(tag_table, 'a', {'href': re.compile(r'.+pdf-a4\.zip$')})
+    pdf_a4_tag = find_tag(tag_table, 'a',
+                          {'href': re.compile(r'.+pdf-a4\.zip$')})
 
     pdf_a4_link = pdf_a4_tag['href']
     arcive_url = urljoin(downloads_url, pdf_a4_link)
@@ -107,7 +109,8 @@ def pep(session):
     peps_url = MAIN_DOC_URL
     response = get_response(session, peps_url)
     soup = BeautifulSoup(response.text, 'lxml')
-    main_table = find_tag(soup, 'section', attrs={'id': 'numerical-index'})  # нахожу все таблицы на странице
+    main_table = find_tag(soup, 'section',
+                          attrs={'id': 'numerical-index'})  # нахожу все таблицы на странице
     body_table = find_tag(main_table, 'tbody')
     row = body_table.find_all('tr')  # В таблице нахожу все строки
     for column in row:  # в каждой строке просматриваю колонки
@@ -123,7 +126,8 @@ def pep(session):
         total += 1
         if new_status not in expected_statuses:
             unexpected_statuses.append(
-                f'{urljoin(MAIN_DOC_URL, link)}\nСтатус в карточке: {new_status}\n'
+                f'{urljoin(MAIN_DOC_URL, link)}'
+                f'\nСтатус в карточке: {new_status}\n'
                 f'Ожидаемые статусы: {expected_statuses}'
             )
     logging.info(*unexpected_statuses)

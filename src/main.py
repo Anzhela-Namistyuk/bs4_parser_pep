@@ -110,7 +110,7 @@ def pep(session):
     response = get_response(session, peps_url)
     soup = BeautifulSoup(response.text, 'lxml')
     main_table = find_tag(soup, 'section',
-                          attrs={'id': 'numerical-index'})  # нахожу все таблицы на странице
+                          attrs={'id': 'numerical-index'})
     body_table = find_tag(main_table, 'tbody')
     row = body_table.find_all('tr')  # В таблице нахожу все строки
     for column in row:  # в каждой строке просматриваю колонки

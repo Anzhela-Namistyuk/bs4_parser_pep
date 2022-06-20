@@ -13,7 +13,7 @@ def get_response(session, url):
 
 def get_response_not_fail(session, url):
     try:
-        get_response(session, url)
+        return get_response(session, url)
     except RequestException as err:
         logging.exception(
             f'Возникла ошибка при загрузке страницы {err.response.url}',

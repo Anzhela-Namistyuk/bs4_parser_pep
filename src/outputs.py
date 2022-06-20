@@ -1,6 +1,7 @@
 import csv
 import datetime as dt
 import logging
+from functools import partial
 
 from prettytable import PrettyTable
 
@@ -8,13 +9,16 @@ from constants import BASE_DIR, DATETIME_FORMAT
 
 
 def control_output(results, cli_args):
+    output_method = {
+        'pretty': pretty_output,
+        'file': partial(file_output, cli_args.mode),
+        'default': default_output
+    }
+
     output = cli_args.output
-    if output == 'pretty':
-        pretty_output(results)
-    elif output == 'file':
-        file_output(results, cli_args)
-    else:
-        default_output(results)
+    if output is None:
+        output = 'default'
+    output_method[output](results)
 
 
 def default_output(results):
@@ -23,7 +27,6 @@ def default_output(results):
 
 
 def pretty_output(results):
-    print(results)
     table = PrettyTable()
     table.field_names = results[0]
     table.align = 'l'
@@ -31,10 +34,9 @@ def pretty_output(results):
     print(table)
 
 
-def file_output(results, cli_args):
+def file_output(parser_mode, results):
     results_dir = BASE_DIR / 'results'
     results_dir.mkdir(exist_ok=True)
-    parser_mode = cli_args.mode
     now = dt.datetime.now()
     now_formatted = now.strftime(DATETIME_FORMAT)
     file_name = f'{parser_mode}_{now_formatted}.csv'

@@ -10,19 +10,21 @@ from tqdm import tqdm
 
 from configs import configure_argument_parser, configure_logging
 from constants import (BASE_DIR, EXPECTED_STATUS, MAIN_DOC_URL,
-                       MAIN_DOC_URL_PYTHON)
+                       MAIN_DOC_URL_PEP, downloads_url, whats_new_url)
 from outputs import control_output
 from utils import find_tag, get_response, get_response_not_fail
 
 
 def whats_new(session):
-    whats_new_url = urljoin(MAIN_DOC_URL_PYTHON, 'whatsnew/')
     response = get_response(session, whats_new_url)
     soup = BeautifulSoup(response.text, 'lxml')
-    main_div = find_tag(soup, 'section', attrs={'id': 'what-s-new-in-python'})
-    div_with_ul = find_tag(main_div, 'div', attrs={'class': 'toctree-wrapper'})
+    main_div = find_tag(soup, 'section',
+                        attrs={'id': 'what-s-new-in-python'})
+    div_with_ul = find_tag(main_div, 'div',
+                           attrs={'class': 'toctree-wrapper'})
     sections_by_python = div_with_ul.find_all(
         'li', attrs={'class': 'toctree-l1'})
+
     results = [('Ссылка на статью', 'Заголовок', 'Редактор, Автор')]
     for section in tqdm(sections_by_python):
         version_a_tag = section.find('a')
@@ -42,7 +44,7 @@ def whats_new(session):
 
 
 def latest_versions(session):
-    response = get_response(session, MAIN_DOC_URL_PYTHON)
+    response = get_response(session, MAIN_DOC_URL)
     soup = BeautifulSoup(response.text, 'lxml')
     sidebar = find_tag(soup, 'div', attrs={'class': 'sphinxsidebarwrapper'})
     ul_tags = sidebar.find_all('ul')
@@ -70,7 +72,6 @@ def latest_versions(session):
 
 
 def download(session):
-    downloads_url = urljoin(MAIN_DOC_URL_PYTHON, 'download.html')
     response = get_response(session, downloads_url)
     soup = BeautifulSoup(response.text, 'lxml')
     tag_table = find_tag(soup, 'table', {'class': 'docutils'})
@@ -89,51 +90,51 @@ def download(session):
     logging.info(f'Архив был загружен и сохранён: {archive_path}')
 
 
-def find_status(link, session):
-    version_link = urljoin(MAIN_DOC_URL, link)
-    response = get_response_not_fail(session, version_link)
-    soup = BeautifulSoup(response.text, 'lxml')
-
-    table = find_tag(soup, 'dl', {'class': 'rfc2822 field-list simple'})
-    status = (table.find(string='Status').parent
-              .find_next_sibling('dd').string)
-    return status
-
-
 def pep(session):
     count_status = Counter()
     unexpected_statuses = []
     total = 0
 
     result = [('Статус', 'Количество')]
-    peps_url = MAIN_DOC_URL
-    response = get_response(session, peps_url)
+    response = get_response(session, MAIN_DOC_URL_PEP)
     soup = BeautifulSoup(response.text, 'lxml')
     main_table = find_tag(soup, 'section',
                           attrs={'id': 'numerical-index'})
     body_table = find_tag(main_table, 'tbody')
     row = body_table.find_all('tr')  # В таблице нахожу все строки
     for column in row:  # в каждой строке просматриваю колонки
-        status = find_tag(column, 'td')  # в первом теге td находится статус
+        td_tag = find_tag(column, 'td')  # в первом теге td находится статус
         a_tag = find_tag(column, 'a')  # в первом теге <а> находится ссылка
         link = a_tag['href']  # находим ссылку
-        status = status.text[1:]  # находим ожидаемый статус
-        expected_statuses = EXPECTED_STATUS[status]
-        new_status = find_status(link, session)
-        if new_status is None:
+        status = td_tag.text[1:]  # находим ожидаемый статус
+        try:
+            expected_statuses = EXPECTED_STATUS[status]
+        except KeyError:
+            logging.exception(
+                f'Не существует такого статуса{status}, tag{td_tag}',
+                stack_info=True
+            )
+        version_link = urljoin(MAIN_DOC_URL_PEP, link)
+        response = get_response_not_fail(session, version_link)
+        if response is None:
             continue
+
+        soup = BeautifulSoup(response.text, 'lxml')
+        table = find_tag(soup, 'dl', {'class': 'rfc2822 field-list simple'})
+        new_status = (table.find(string='Status').parent
+                      .find_next_sibling('dd').string)
+
         count_status[new_status] += 1
         total += 1
         if new_status not in expected_statuses:
             unexpected_statuses.append(
-                f'{urljoin(MAIN_DOC_URL, link)}'
+                f'{version_link}'
                 f'\nСтатус в карточке: {new_status}\n'
                 f'Ожидаемые статусы: {expected_statuses}'
             )
     logging.info(*unexpected_statuses)
-    for key, value in count_status.items():
-        result.append((key, str(value)))
-    result.append(('Total', str(total)))
+    result.extend(count_status.items())
+    result.append(('Total', total))
     return result
 
 
